@@ -101,12 +101,50 @@ func (m *MoegirlClient) Search(query string, limit int) ([]SearchResult, error) 
 	return apiResp.Query.Search, nil
 }
 
-// GetPage 获取页面内容
-func (m *MoegirlClient) GetPage(title string) (*Page, error) {
+// GetPageByTitle 通过标题获取页面内容
+func (m *MoegirlClient) GetPageByTitle(title string) (*Page, error) {
 	params := url.Values{}
 	params.Set("action", "query")
 	params.Set("format", "json")
 	params.Set("titles", title)
+	params.Set("prop", "revisions")
+	params.Set("rvprop", "content")
+
+	resp, err := m.makeRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp APIResponse
+	err = json.Unmarshal(body, &apiResp)
+	if err != nil {
+		return nil, err
+	}
+
+	if apiResp.Query == nil || apiResp.Query.Pages == nil {
+		return nil, fmt.Errorf("未找到页面")
+	}
+
+	// 获取第一个页面（通常只有一个）
+	for _, page := range apiResp.Query.Pages {
+		return &page, nil
+	}
+
+	return nil, fmt.Errorf("未找到页面内容")
+}
+
+// GetPageByID 通过页面ID获取页面内容
+func (m *MoegirlClient) GetPageByID(pageID int) (*Page, error) {
+	params := url.Values{}
+	params.Set("action", "query")
+	params.Set("format", "json")
+	params.Set("pageids", fmt.Sprintf("%d", pageID))
 	params.Set("prop", "revisions")
 	params.Set("rvprop", "content")
 
@@ -221,11 +259,13 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("用法:")
 		fmt.Println("  搜索: go run main.go search <关键词> [数量]")
-		fmt.Println("  查看: go run main.go view <页面标题>")
+		fmt.Println("  查看(按标题): go run main.go view <页面标题>")
+		fmt.Println("  查看(按ID): go run main.go viewid <页面ID>")
 		fmt.Println()
 		fmt.Println("示例:")
 		fmt.Println("  go run main.go search 萌娘 5")
 		fmt.Println("  go run main.go view 萌娘百科:首页")
+		fmt.Println("  go run main.go viewid 23528")
 		return
 	}
 
@@ -262,9 +302,30 @@ func main() {
 			return
 		}
 		
-		title := os.Args[2]
+		title := strings.Join(os.Args[2:], " ")  // 支持带空格的标题
 		fmt.Printf("正在获取页面: %s\n", title)
-		page, err := client.GetPage(title)
+		page, err := client.GetPageByTitle(title)
+		if err != nil {
+			fmt.Printf("获取页面失败: %v\n", err)
+			return
+		}
+		
+		printPageContent(page)
+
+	case "viewid":
+		if len(os.Args) < 3 {
+			fmt.Println("错误: 请提供页面ID")
+			return
+		}
+		
+		pageID, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Printf("页面ID必须是数字: %v\n", err)
+			return
+		}
+		
+		fmt.Printf("正在获取页面ID: %d\n", pageID)
+		page, err := client.GetPageByID(pageID)
 		if err != nil {
 			fmt.Printf("获取页面失败: %v\n", err)
 			return
@@ -276,6 +337,7 @@ func main() {
 		fmt.Printf("未知命令: %s\n", command)
 		fmt.Println("用法:")
 		fmt.Println("  搜索: go run main.go search <关键词> [数量]")
-		fmt.Println("  查看: go run main.go view <页面标题>")
+		fmt.Println("  查看(按标题): go run main.go view <页面标题>")
+		fmt.Println("  查看(按ID): go run main.go viewid <页面ID>")
 	}
 }
