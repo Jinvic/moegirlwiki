@@ -226,14 +226,45 @@ func printPageContent(page *Page) {
 
 	if len(page.Revisions) > 0 && page.Revisions[0].Content != "" {
 		content := page.Revisions[0].Content
-		// 限制输出长度，避免输出过长的内容
-		if len(content) > 2000 {
-			content = content[:2000] + "\n\n... (内容太长，已截断) ..."
+		
+		// 保存完整内容到本地文件
+		filename := sanitizeFilename(page.Title) + ".txt"
+		err := os.WriteFile(filename, []byte(content), 0644)
+		if err != nil {
+			fmt.Printf("警告: 无法保存页面内容到文件 %s: %v\n", filename, err)
+		} else {
+			fmt.Printf("完整页面内容已保存到: %s\n", filename)
+		}
+		
+		// 限制终端输出长度，避免输出过长的内容
+		if len(content) > 1000 { // 减少终端输出长度
+			content = content[:1000] + "\n\n... (内容太长，完整内容请查看本地文件) ..."
 		}
 		fmt.Println(content)
 	} else {
 		fmt.Println("页面内容为空")
 	}
+}
+
+// sanitizeFilename 清理文件名，移除不安全的字符
+func sanitizeFilename(title string) string {
+	// 替换不安全的字符
+	sanitized := strings.ReplaceAll(title, "/", "_")
+	sanitized = strings.ReplaceAll(sanitized, "\\", "_")
+	sanitized = strings.ReplaceAll(sanitized, ":", "_")
+	sanitized = strings.ReplaceAll(sanitized, "*", "_")
+	sanitized = strings.ReplaceAll(sanitized, "?", "_")
+	sanitized = strings.ReplaceAll(sanitized, "\"", "_")
+	sanitized = strings.ReplaceAll(sanitized, "<", "_")
+	sanitized = strings.ReplaceAll(sanitized, ">", "_")
+	sanitized = strings.ReplaceAll(sanitized, "|", "_")
+	
+	// 限制文件名长度
+	if len(sanitized) > 100 {
+		sanitized = sanitized[:100]
+	}
+	
+	return sanitized
 }
 
 // stripHTML 简单的HTML标签移除函数
