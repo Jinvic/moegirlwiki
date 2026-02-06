@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const apiURL = "https://zh.moegirl.org.cn/api.php"
+const apiURL = "https://zh.moegirl.org/api.php"
 
 // APIResponse 表示API响应的基本结构
 type APIResponse struct {
@@ -20,8 +20,8 @@ type APIResponse struct {
 
 // QueryResult 表示查询结果
 type QueryResult struct {
-	SearchInfo *SearchInfo `json:"searchinfo,omitempty"`
-	Search     []SearchResult `json:"search,omitempty"`
+	SearchInfo *SearchInfo     `json:"searchinfo,omitempty"`
+	Search     []SearchResult  `json:"search,omitempty"`
 	Pages      map[string]Page `json:"pages,omitempty"`
 }
 
@@ -43,9 +43,9 @@ type SearchResult struct {
 
 // Page 页面信息
 type Page struct {
-	PageID    int    `json:"pageid"`
-	NS        int    `json:"ns"`
-	Title     string `json:"title"`
+	PageID    int        `json:"pageid"`
+	NS        int        `json:"ns"`
+	Title     string     `json:"title"`
 	Revisions []Revision `json:"revisions,omitempty"`
 }
 
@@ -180,6 +180,7 @@ func (m *MoegirlClient) GetPageByID(pageID int) (*Page, error) {
 // makeRequest 发起API请求
 func (m *MoegirlClient) makeRequest(params url.Values) (*http.Response, error) {
 	reqURL := apiURL + "?" + params.Encode()
+	fmt.Println("reqURL:", reqURL)
 	resp, err := m.client.Get(reqURL)
 	if err != nil {
 		return nil, err
@@ -201,7 +202,7 @@ func printSearchResults(results []SearchResult) {
 
 	fmt.Printf("找到 %d 条结果:\n", len(results))
 	fmt.Println(strings.Repeat("-", 80))
-	
+
 	for i, result := range results {
 		fmt.Printf("%d. %s\n", i+1, result.Title)
 		fmt.Printf("   页面ID: %d\n", result.PageID)
@@ -226,7 +227,7 @@ func printPageContent(page *Page) {
 
 	if len(page.Revisions) > 0 && page.Revisions[0].Content != "" {
 		content := page.Revisions[0].Content
-		
+
 		// 保存完整内容到本地文件
 		filename := sanitizeFilename(page.Title) + ".txt"
 		err := os.WriteFile(filename, []byte(content), 0644)
@@ -235,7 +236,7 @@ func printPageContent(page *Page) {
 		} else {
 			fmt.Printf("完整页面内容已保存到: %s\n", filename)
 		}
-		
+
 		// 限制终端输出长度，避免输出过长的内容
 		if len(content) > 1000 { // 减少终端输出长度
 			content = content[:1000] + "\n\n... (内容太长，完整内容请查看本地文件) ..."
@@ -258,12 +259,12 @@ func sanitizeFilename(title string) string {
 	sanitized = strings.ReplaceAll(sanitized, "<", "_")
 	sanitized = strings.ReplaceAll(sanitized, ">", "_")
 	sanitized = strings.ReplaceAll(sanitized, "|", "_")
-	
+
 	// 限制文件名长度
 	if len(sanitized) > 100 {
 		sanitized = sanitized[:100]
 	}
-	
+
 	return sanitized
 }
 
@@ -309,7 +310,7 @@ func main() {
 			fmt.Println("错误: 请提供搜索关键词")
 			return
 		}
-		
+
 		query := os.Args[2]
 		limit := 10 // 默认搜索结果数量
 		if len(os.Args) > 3 {
@@ -317,14 +318,14 @@ func main() {
 				limit = l
 			}
 		}
-		
+
 		fmt.Printf("正在搜索: %s\n", query)
 		results, err := client.Search(query, limit)
 		if err != nil {
 			fmt.Printf("搜索失败: %v\n", err)
 			return
 		}
-		
+
 		printSearchResults(results)
 
 	case "view":
@@ -332,15 +333,15 @@ func main() {
 			fmt.Println("错误: 请提供页面标题")
 			return
 		}
-		
-		title := strings.Join(os.Args[2:], " ")  // 支持带空格的标题
+
+		title := strings.Join(os.Args[2:], " ") // 支持带空格的标题
 		fmt.Printf("正在获取页面: %s\n", title)
 		page, err := client.GetPageByTitle(title)
 		if err != nil {
 			fmt.Printf("获取页面失败: %v\n", err)
 			return
 		}
-		
+
 		printPageContent(page)
 
 	case "viewid":
@@ -348,20 +349,20 @@ func main() {
 			fmt.Println("错误: 请提供页面ID")
 			return
 		}
-		
+
 		pageID, err := strconv.Atoi(os.Args[2])
 		if err != nil {
 			fmt.Printf("页面ID必须是数字: %v\n", err)
 			return
 		}
-		
+
 		fmt.Printf("正在获取页面ID: %d\n", pageID)
 		page, err := client.GetPageByID(pageID)
 		if err != nil {
 			fmt.Printf("获取页面失败: %v\n", err)
 			return
 		}
-		
+
 		printPageContent(page)
 
 	default:
